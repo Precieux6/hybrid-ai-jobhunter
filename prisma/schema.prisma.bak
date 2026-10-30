@@ -1,0 +1,83 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String?
+  baseCvText   String?       @db.Text
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  JobOffer     JobOffer[]
+  Application  Application[]
+  TargetProfile TargetProfile[]
+  @@map("hybrid_users")
+}
+
+model JobOffer {
+  id           String        @id @default(uuid())
+  title        String
+  company      String
+  location     String?
+  description  String        @db.Text
+  url          String?       @unique
+  source       String        // e.g., "LinkedIn", "Indeed"
+  
+  // Scoring AI
+  matchScore   Float?
+  
+  // Vector Embedding (using Unsupported to allow pgvector type in Prisma schema)
+  embedding    Unsupported("vector(768)")?
+  
+  status       String        @default("PENDING") // PENDING, REJECTED, APPROVED, SENT
+  createdAt    DateTime      @default(now())
+  
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  
+  applications Application[]
+  @@map("hybrid_job_offers")
+}
+
+model Application {
+  id              String    @id @default(uuid())
+  generatedCvUrl  String?
+  coverLetterText String?   @db.Text
+  status          String    @default("DRAFT") // DRAFT, SENT, FAILED
+  sentAt          DateTime?
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  jobOfferId      String
+  jobOffer        JobOffer  @relation(fields: [jobOfferId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  @@map("hybrid_applications")
+}
+
+model TargetProfile {
+  id           String    @id @default(uuid())
+  network      String    // "LinkedIn", "Instagram", "Facebook", "Threads"
+  url          String    @unique
+  name         String?
+  bio          String?   @db.Text
+  
+  // AI audit results
+  auditScore   Float?
+  hookMessage  String?   @db.Text
+  status       String    @default("PENDING") // PENDING, AUDITED, CONTACTED
+  
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  
+  createdAt    DateTime  @default(now())
+  @@map("hybrid_targets")
+}

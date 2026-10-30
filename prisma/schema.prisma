@@ -1,0 +1,132 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+model daily_quotas {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String      @db.Uuid
+  date           DateTime    @db.Date
+  type           target_type
+  scraped_count  Int         @default(0)
+  approved_count Int         @default(0)
+  sent_count     Int         @default(0)
+  users          users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, date, type])
+}
+
+model deliverables {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  target_id        String           @db.Uuid
+  user_id          String           @db.Uuid
+  type             deliverable_type
+  content          String?
+  file_url         String?
+  is_human_edited  Boolean?         @default(false)
+  original_content String?
+  created_at       DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime         @default(now()) @db.Timestamptz(6)
+  targets          targets          @relation(fields: [target_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model targets {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String         @db.Uuid
+  type               target_type
+  status             target_status  @default(pending_scrape)
+  source             String?
+  external_url       String?
+  external_id        String?
+  raw_data           Json?
+  title              String?
+  company_name       String?
+  location           String?
+  description        String?
+  requirements       String[]       @default([])
+  ai_match_score     Int?
+  ai_match_reasoning String?
+  ai_relevance_tags  String[]       @default([])
+  audit_data         Json?
+  batch_date         DateTime?      @db.Date
+  human_notes        String?
+  is_human_edited    Boolean?       @default(false)
+  created_at         DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime       @default(now()) @db.Timestamptz(6)
+  deliverables       deliverables[]
+  users              users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, status], map: "idx_targets_user_status")
+}
+
+model user_settings {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String   @unique @db.Uuid
+  job_search_keywords  String[] @default([])
+  job_search_locations String[] @default([])
+  job_search_sources   String[] @default(["linkedin", "indeed", "wttj"])
+  prospect_industries  String[] @default([])
+  prospect_roles       String[] @default([])
+  prospect_offer_type  String?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+  users                users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clerk_id              String         @unique
+  email                 String         @unique
+  full_name             String
+  base_profile_text     String
+  profile_summary       String?
+  daily_quota_jobs      Int            @default(10)
+  daily_quota_prospects Int            @default(10)
+  is_active             Boolean        @default(true)
+  created_at            DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime       @default(now()) @db.Timestamptz(6)
+  daily_quotas          daily_quotas[]
+  deliverables          deliverables[]
+  targets               targets[]
+  user_settings         user_settings?
+}
+
+enum deliverable_type {
+  cv_markdown
+  cv_pdf_url
+  cover_letter
+  hook_message
+  email_b2b_1
+  email_b2b_relay
+  audit_report
+  value_proposition
+}
+
+enum target_status {
+  pending_scrape
+  scraped
+  pending_score
+  scored
+  pending_generation
+  generated
+  pending_review
+  approved
+  rejected
+  sending
+  sent
+  failed
+  relance_scheduled
+  relance_sent
+  archived
+}
+
+enum target_type {
+  job
+  prospect
+}
