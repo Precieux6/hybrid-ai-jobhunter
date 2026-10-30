@@ -4,7 +4,17 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-const connectionString = process.env.DATABASE_URL;
+let rawUrl = (process.env.DATABASE_URL || "").trim();
+
+// Débarrasser les guillemets ou quotes éventuelles
+if ((rawUrl.startsWith('"') && rawUrl.endsWith('"')) || (rawUrl.startsWith("'") && rawUrl.endsWith("'"))) {
+  rawUrl = rawUrl.slice(1, -1).trim();
+}
+
+// Extraction robuste de l'URL Postgres si du texte a été collé avec
+const match = rawUrl.match(/postgres(?:ql)?:\/\/[^\s"']+/);
+const connectionString = match ? match[0] : rawUrl;
+
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 

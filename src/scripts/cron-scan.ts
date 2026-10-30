@@ -11,6 +11,14 @@ async function main() {
   console.log("🚀 Démarrage du scan automatique (GitHub Actions)");
   console.log("==================================================\n");
 
+  const rawDbUrl = (process.env.DATABASE_URL || "").trim();
+  if (!rawDbUrl || (!rawDbUrl.includes("postgres://") && !rawDbUrl.includes("postgresql://"))) {
+    console.error("❌ ERREUR CONFIGURATION: Le secret GitHub 'DATABASE_URL' ne contient pas une URL Postgres valide !");
+    console.error("👉 Il doit contenir l'URL complète commençant par postgresql://neondb_owner:...");
+    console.error("Valeur actuelle détectée :", rawDbUrl.substring(0, 15) + "...");
+    process.exit(1);
+  }
+
   let user = await prisma.users.findFirst();
   if (!user) {
     user = await prisma.users.create({
