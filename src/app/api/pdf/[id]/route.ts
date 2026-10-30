@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const cvDeliverable = target.deliverables.find(
-      (d) => d.type === "cv_markdown"
+      (d: any) => d.type === "cv_markdown"
     );
 
     const cvMarkdown =
